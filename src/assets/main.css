@@ -1,0 +1,52 @@
+@import './base.css';
+@import './global.css';
+
+#app {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  font-weight: normal;
+}
+
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    display: flex;
+    place-items: center;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+}
+
+
+/* 为特定元素设置100%宽度 */
+.full-width {
+  width: 100%;
+}
+
+/* 或者为特定选择器设置 */
+#app {
+  width: 100%;
+}
+
+/* 或者为body元素设置 */
+body {
+  width: 100%;
+}
