@@ -19,7 +19,7 @@ interface Props {
 
 withDefaults(defineProps<Props>(), {
   text: '加载中...',
-  fullScreen: false
+  fullScreen: false,
 })
 </script>
 
