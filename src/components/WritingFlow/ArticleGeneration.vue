@@ -141,7 +141,7 @@ const progress = ref(0)
 const progressText = ref('')
 const generateTime = ref(0)
 
-const selectedConfig = computed(() => aiConfigStore.selectedConfig)
+const selectedConfig = computed(() => aiConfigStore.activeConfig)
 
 const wordCount = computed(() => {
   return article.value.content.replace(/\s/g, '').length

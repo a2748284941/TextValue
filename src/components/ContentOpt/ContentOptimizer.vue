@@ -184,7 +184,7 @@ const seoScore = ref(0)
 const aiDetectionRisk = ref(0)
 const suggestions = ref<Suggestion[]>([])
 
-const selectedConfig = computed(() => aiConfigStore.selectedConfig)
+const selectedConfig = computed(() => aiConfigStore.activeConfig)
 
 const originalWordCount = computed(() => {
   return originalContent.value.replace(/\s/g, '').length

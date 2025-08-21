@@ -18,8 +18,8 @@
       </el-select>
     </el-form-item>
     
-    <el-form-item label="API地址" prop="baseUrl">
-      <el-input v-model="formData.baseUrl" placeholder="请输入API基础地址" />
+    <el-form-item label="API地址" prop="apiEndpoint">
+      <el-input v-model="formData.apiEndpoint" placeholder="请输入API基础地址（如：https://api.openai.com）" />
     </el-form-item>
     
     <el-form-item label="API密钥" prop="apiKey">
@@ -31,10 +31,15 @@
       />
     </el-form-item>
     
-    <el-form-item label="请求头配置">
+    <el-form-item label="启用状态">
+      <el-switch v-model="formData.isActive" />
+    </el-form-item>
+    
+    <!-- 自定义请求头配置（仅在自定义平台时显示） -->
+    <el-form-item v-if="formData.type === 'custom'" label="自定义请求头">
       <div class="headers-config">
         <div
-          v-for="(header, index) in formData.headers"
+          v-for="(header, index) in formData.customHeaders"
           :key="index"
           class="header-item"
         >
@@ -51,14 +56,14 @@
           <el-button
             type="danger"
             size="small"
-            @click="removeHeader(index)"
+            @click="removeCustomHeader(index)"
             style="margin-left: 10px"
           >
             删除
           </el-button>
         </div>
-        <el-button type="primary" size="small" @click="addHeader">
-          添加Header
+        <el-button type="primary" size="small" @click="addCustomHeader">
+          添加自定义Header
         </el-button>
       </div>
     </el-form-item>
@@ -110,12 +115,40 @@ const formRef = ref<FormInstance>()
 const formData = reactive({
   name: '',
   type: 'openai' as const,
-  baseUrl: '',
+  apiEndpoint: '',
   apiKey: '',
-  headers: [] as Array<{ key: string; value: string }>,
+  isActive: true,
+  customHeaders: [] as Array<{ key: string; value: string }>,
   timeout: 30,
   maxRetries: 3
 })
+
+// 平台默认配置
+const platformDefaults = {
+  openai: {
+    apiEndpoint: 'https://api.openai.com',
+    headers: [
+      { key: 'Content-Type', value: 'application/json' }
+    ]
+  },
+  claude: {
+    apiEndpoint: 'https://api.anthropic.com',
+    headers: [
+      { key: 'Content-Type', value: 'application/json' },
+      { key: 'anthropic-version', value: '2023-06-01' }
+    ]
+  },
+  gemini: {
+    apiEndpoint: 'https://generativelanguage.googleapis.com',
+    headers: [
+      { key: 'Content-Type', value: 'application/json' }
+    ]
+  },
+  custom: {
+    apiEndpoint: '',
+    headers: []
+  }
+}
 
 const rules: FormRules = {
   name: [
@@ -124,7 +157,7 @@ const rules: FormRules = {
   type: [
     { required: true, message: '请选择平台类型', trigger: 'change' }
   ],
-  baseUrl: [
+  apiEndpoint: [ // 改为 apiEndpoint
     { required: true, message: '请输入API地址', trigger: 'blur' },
     { type: 'url', message: '请输入有效的URL地址', trigger: 'blur' }
   ],
@@ -133,26 +166,54 @@ const rules: FormRules = {
   ]
 }
 
-const addHeader = () => {
-  formData.headers.push({ key: '', value: '' })
+const addCustomHeader = () => {
+  formData.customHeaders.push({ key: '', value: '' })
 }
 
-const removeHeader = (index: number) => {
-  formData.headers.splice(index, 1)
+const removeCustomHeader = (index: number) => {
+  formData.customHeaders.splice(index, 1)
 }
+
+// 根据平台类型设置默认配置
+const setPlatformDefaults = (type: string) => {
+  const defaults = platformDefaults[type as keyof typeof platformDefaults]
+  if (defaults) {
+    formData.apiEndpoint = defaults.apiEndpoint
+    // 自定义平台不自动设置endpoint
+    if (type === 'custom') {
+      formData.apiEndpoint = ''
+    }
+  }
+}
+
+// 监听平台类型变化
+watch(() => formData.type, (newType) => {
+  setPlatformDefaults(newType)
+})
+
+let isSaving = false
 
 const handleSave = async () => {
-  if (!formRef.value) return
+  if (!formRef.value || isSaving) return
+  
+  isSaving = true
   
   try {
     await formRef.value.validate()
     
+    // 获取当前平台的默认headers
+    const platformHeaders = platformDefaults[formData.type as keyof typeof platformDefaults]?.headers || []
+    // 合并默认headers和自定义headers
+    const allHeaders = [...platformHeaders, ...formData.customHeaders.filter(h => h.key && h.value)]
+    
     const config: Partial<AIConfig> = {
       name: formData.name,
       type: formData.type,
-      baseUrl: formData.baseUrl,
+      apiEndpoint: formData.apiEndpoint,
       apiKey: formData.apiKey,
-      headers: formData.headers.filter(h => h.key && h.value),
+      modelIdentifier: '',
+      isActive: formData.isActive,
+      headers: allHeaders,
       timeout: formData.timeout,
       maxRetries: formData.maxRetries
     }
@@ -160,11 +221,21 @@ const handleSave = async () => {
     emit('save', config)
   } catch (error) {
     console.error('表单验证失败:', error)
+  } finally {
+    // 延迟重置防抖标志，避免快速重复点击
+    setTimeout(() => {
+      isSaving = false
+    }, 1000)
   }
 }
 
-const handleCancel = () => {
-  emit('cancel')
+// 分离平台默认headers和自定义headers
+const separateHeaders = (allHeaders: Array<{ key: string; value: string }>, platformType: string) => {
+  const platformHeaders = platformDefaults[platformType as keyof typeof platformDefaults]?.headers || []
+  const customHeaders = allHeaders.filter(header => 
+    !platformHeaders.some(ph => ph.key === header.key && ph.value === header.value)
+  )
+  return customHeaders
 }
 
 // 监听props变化，初始化表单数据
@@ -172,30 +243,37 @@ watch(
   () => props.config,
   (config) => {
     if (config) {
+      const customHeaders = config.headers ? separateHeaders(config.headers, config.type) : []
       Object.assign(formData, {
         name: config.name,
         type: config.type,
-        baseUrl: config.baseUrl,
+        apiEndpoint: config.apiEndpoint,
         apiKey: config.apiKey,
-        headers: config.headers ? [...config.headers] : [],
+        isActive: config.isActive !== undefined ? config.isActive : true,
+        customHeaders: customHeaders,
         timeout: config.timeout || 30,
         maxRetries: config.maxRetries || 3
       })
     } else {
-      // 重置表单
+      // 重置表单并设置默认值
       Object.assign(formData, {
         name: '',
         type: 'openai',
-        baseUrl: '',
         apiKey: '',
-        headers: [],
+        isActive: true,
+        customHeaders: [],
         timeout: 30,
         maxRetries: 3
       })
+      // 设置平台默认配置
+      setPlatformDefaults('openai')
     }
   },
   { immediate: true }
 )
+const handleCancel = () => {
+  emit('cancel')
+}
 </script>
 
 <style scoped>

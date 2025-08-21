@@ -127,11 +127,13 @@ const getArticleTypeLabel = (type: string) => {
 const generateTitles = async () => {
   generating.value = true
   try {
-    const activeConfig = aiConfigStore.configs.find(c => c.status === 'active')
+    const activeConfig = aiConfigStore.activeConfig
     if (!activeConfig) {
       ElMessage.error('请先配置并激活AI平台')
       return
     }
+    
+    console.log('使用的AI配置:', activeConfig)
     
     const prompt = `请为以下主题生成5个吸引人的文章标题：
 主题：${parsedKeywords.value.topic}

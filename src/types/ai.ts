@@ -18,6 +18,12 @@ export interface AIModel {
   capabilities: ModelCapability[]
   maxTokens?: number
   costPer1kTokens?: number
+  status?: 'available' | 'unavailable' | 'testing'
+  type?: 'text' | 'chat' | 'embedding' | 'image'
+  pricing?: {
+    input: number
+    output: number
+  }
 }
 
 // 模型能力枚举

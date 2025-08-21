@@ -7,6 +7,7 @@ export const useAIConfigStore = defineStore('aiConfig', () => {
   // 状态
   const configs = ref<AIConfig[]>([])
   const models = ref<AIModel[]>([])
+  const modelCache = ref<Map<string, AIModel[]>>(new Map()) // 模型缓存，key为configId
   const activeConfigId = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -87,39 +88,60 @@ export const useAIConfigStore = defineStore('aiConfig', () => {
   }
 
   const testConnection = async (config: AIConfig): Promise<ConnectionTestResult> => {
+    console.log('开始测试连接，配置:', config)
     isLoading.value = true
     error.value = null
     
     try {
       const startTime = Date.now()
+      console.log('调用aiService.testConnection...')
       const result = await aiService.testConnection(config)
+      console.log('aiService.testConnection结果:', result)
       const latency = Date.now() - startTime
       
-      return {
+      const testResult = {
         success: result.success,
         latency,
         error: result.error,
         models: result.models
       }
+      console.log('最终测试结果:', testResult)
+      return testResult
     } catch (err) {
-      return {
+      console.error('测试连接异常:', err)
+      const errorResult = {
         success: false,
         error: err instanceof Error ? err.message : '连接测试失败'
       }
+      console.log('错误结果:', errorResult)
+      return errorResult
     } finally {
       isLoading.value = false
     }
   }
 
-  const loadModels = async (configId: string) => {
+  const loadModels = async (configId: string, forceRefresh = false) => {
     const config = configs.value.find(c => c.id === configId)
     if (!config) return
 
+    // 如果有缓存且不是强制刷新，直接使用缓存
+    if (!forceRefresh && modelCache.value.has(configId)) {
+      const cachedModels = modelCache.value.get(configId)!
+      models.value = cachedModels
+      console.log('使用缓存的模型列表:', cachedModels.length, '个模型')
+      return cachedModels
+    }
+
     isLoading.value = true
     try {
+      console.log('从服务器获取模型列表...')
       const result = await aiService.getModels(config)
       if (result.success && result.data) {
         models.value = result.data
+        // 缓存模型列表
+        modelCache.value.set(configId, result.data)
+        console.log('模型列表已缓存:', result.data.length, '个模型')
+        return result.data
       }
     } catch (err) {
       error.value = '加载模型列表失败'
@@ -127,6 +149,24 @@ export const useAIConfigStore = defineStore('aiConfig', () => {
     } finally {
       isLoading.value = false
     }
+  }
+
+  const refreshModels = async (configId: string) => {
+    console.log('刷新模型列表，清空缓存...')
+    // 清空指定配置的缓存
+    modelCache.value.delete(configId)
+    // 强制重新加载
+    return await loadModels(configId, true)
+  }
+
+  const clearAllModelCache = () => {
+    console.log('清空所有模型缓存')
+    modelCache.value.clear()
+    models.value = []
+  }
+
+  const getModelsFromCache = (configId: string): AIModel[] | null => {
+    return modelCache.value.get(configId) || null
   }
 
   const setActiveConfig = (configId: string | null) => {
@@ -151,6 +191,7 @@ export const useAIConfigStore = defineStore('aiConfig', () => {
     // 状态
     configs,
     models,
+    modelCache,
     activeConfigId,
     isLoading,
     error,
@@ -164,6 +205,9 @@ export const useAIConfigStore = defineStore('aiConfig', () => {
     deleteConfig,
     testConnection,
     loadModels,
+    refreshModels,
+    clearAllModelCache,
+    getModelsFromCache,
     setActiveConfig,
     init
   }

@@ -202,7 +202,7 @@ const variations = ref<Variation[]>([])
 const optimizerRef = ref()
 const checkerRef = ref()
 
-const selectedConfig = computed(() => aiConfigStore.selectedConfig)
+const selectedConfig = computed(() => aiConfigStore.activeConfig)
 
 const wordCount = computed(() => {
   return content.value.replace(/\s/g, '').length

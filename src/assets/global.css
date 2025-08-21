@@ -251,3 +251,17 @@ body {
   color: #f56c6c;
   border-color: #fbc4c4;
 }
+
+/* 减少 ResizeObserver 触发 */
+.el-table {
+  contain: layout style;
+}
+
+.el-dialog {
+  contain: layout;
+}
+
+/* 优化动画性能 */
+.el-table__body-wrapper {
+  will-change: auto;
+}

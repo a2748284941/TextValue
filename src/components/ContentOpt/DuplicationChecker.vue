@@ -218,7 +218,7 @@ const checkResult = ref<CheckResult | null>(null)
 const duplicateItems = ref<DuplicateItem[]>([])
 const activeCollapse = ref<number[]>([])
 
-const selectedConfig = computed(() => aiConfigStore.selectedConfig)
+const selectedConfig = computed(() => aiConfigStore.activeConfig)
 
 const checkDuplication = async () => {
   if (!content.value.trim()) {

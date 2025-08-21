@@ -123,7 +123,7 @@ const outline = ref<OutlineItem[]>([])
 const generating = ref(false)
 const drag = ref(false)
 
-const selectedConfig = computed(() => aiConfigStore.selectedConfig)
+const selectedConfig = computed(() => aiConfigStore.activeConfig)
 
 watch(
   () => outline.value,
